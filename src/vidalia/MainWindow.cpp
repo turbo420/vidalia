@@ -144,6 +144,8 @@ MainWindow::MainWindow()
   connect(_torControl, SIGNAL(authenticated()), this, SLOT(authenticated()));
   connect(_torControl, SIGNAL(authenticationFailed(QString)),
           this, SLOT(authenticationFailed(QString)));
+  connect(_torControl, SIGNAL(streamStatusChanged(Stream)),
+          this, SLOT(addStreamToTrayIcon(Stream)));
 
   _torControl->setEvent(TorEvents::GeneralStatus);
   connect(_torControl, SIGNAL(dangerousTorVersion(tc::TorVersionStatus,
@@ -215,6 +217,7 @@ MainWindow::MainWindow()
     show(); 
   /* Optimistically hope that the tray icon gets added. */
   _trayIcon.show();
+  _streams = 0;
 }
 
 /** Destructor. */
@@ -938,7 +941,9 @@ MainWindow::updateTorStatus(TorStatus status)
   /* Update the tray icon */
   if (!trayIconFile.isEmpty()) {
     setTrayIcon(trayIconFile);
+    _trayIconFile = trayIconFile;
   }
+
   /* Update the status banner on the control panel */
   if (!statusIconFile.isEmpty())
     ui.lblTorStatusImg->setPixmap(QPixmap(statusIconFile));
@@ -947,6 +952,54 @@ MainWindow::updateTorStatus(TorStatus status)
     ui.lblTorStatus->setText(statusText);
   }
   return prevStatus;
+}
+
+/** Called when the "show on startup" checkbox is toggled. */
+void
+MainWindow::addStreamToTrayIcon(const Stream &stream)
+{
+    Stream::Status status = stream.status();
+    switch (status) {
+      case Stream::Closed:
+      case Stream::Failed:
+        _streams--;
+        if (_streams <= 0) {
+          _streams = 0;
+          setTrayIcon(_trayIconFile);
+          return;
+        }
+        break;
+      case Stream::New:
+        _streams++;
+        if (_streams > 99)
+          return;
+        break;
+      default:
+        return;
+    }
+
+
+    int w = _trayIcon.geometry().size().width() / ((_streams > 9) ? 1 : 2);
+    int h = _trayIcon.geometry().size().height() / 2;
+
+    QPixmap overlay(w, h);
+    overlay.fill(Qt::transparent);
+
+    QPainter p;
+    p.begin(&overlay);
+    p.setBrush(QBrush(Qt::red));
+    p.drawEllipse(0, 0, w, h);
+    p.setPen(Qt::white);
+    QFont font("Arial");
+    font.setPixelSize(h-2);
+    p.setFont(font);
+    p.drawText(overlay.rect(), Qt::AlignCenter, QString("%1").arg(_streams));
+    p.end();
+
+    QPixmap icon = _trayIcon.icon().pixmap(_trayIcon.geometry().size());
+    QPainter painter(&icon);
+    painter.drawPixmap(icon.width() - (overlay.width() + 2), 0, overlay);
+    _trayIcon.setIcon(icon);
 }
 
 /** Called when the "show on startup" checkbox is toggled. */

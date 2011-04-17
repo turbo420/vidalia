@@ -143,6 +143,7 @@ private slots:
                            const QString &version,
                            const QStringList &recommended);
 
+  void addStreamToTrayIcon(const Stream &stream);
 #if defined(USE_AUTOUPDATE)
   /** Called when the user clicks the 'Check Now' button in the General
    * settings page. */
@@ -258,6 +259,8 @@ private:
   bool _useSavedPassword;
   /** The Vidalia icon that sits in the tray. */
   QSystemTrayIcon _trayIcon;
+  int _streams;
+  QString _trayIconFile;
 
 #if defined(USE_AUTOUPDATE)
   /** Timer used to remind us to check for software updates. */
